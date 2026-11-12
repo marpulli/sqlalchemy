@@ -45,6 +45,7 @@ from sqlalchemy.orm import mapped_as_dataclass
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import MappedAsDataclass
 from sqlalchemy.orm import MappedColumn
+from sqlalchemy.orm import orm_insert_sentinel
 from sqlalchemy.orm import query_expression
 from sqlalchemy.orm import registry
 from sqlalchemy.orm import registry as _RegistryType
@@ -3768,6 +3769,29 @@ class UseDescriptorDefaultsTest(fixtures.TestBase, testing.AssertsCompiledSQL):
             eq_(
                 sess.scalar(select(MyClass.__table__.c.data)),
                 "some_default",
+            )
+
+    def test_orm_insert_sentinel(self, dc_decl_base):
+        """tests #13787 - using orm_insert_sentinel with dataclass mapping"""
+
+        class MyClass(dc_decl_base):
+            __tablename__ = "a"
+
+            id: Mapped[int] = mapped_column(primary_key=True, init=False)
+            data: Mapped[str]
+            _sentinel: Mapped[int] = orm_insert_sentinel()
+
+        dc_decl_base.metadata.create_all(testing.db)
+
+        with Session(testing.db) as sess:
+            sess.add(MyClass(data="d1"))
+            sess.flush()
+            sess.add_all([MyClass(data="d2"), MyClass(data="d3")])
+            sess.commit()
+
+            eq_(
+                sess.scalars(select(MyClass.data).order_by(MyClass.id)).all(),
+                ["d1", "d2", "d3"],
             )
 
     @testing.variation("use_attr_init", [True, False])

@@ -4255,7 +4255,9 @@ class _InsertSentinelColumnDefault(ColumnDefault):
         return _InsertSentinelColumnDefault()
 
     def compare_argument(self, argument: Any) -> bool:
-        return argument is None
+        return argument is None or isinstance(
+            argument, _InsertSentinelColumnDefault
+        )
 
 
 _SQLExprDefault = Union["ColumnElement[Any]", "TextClause"]
